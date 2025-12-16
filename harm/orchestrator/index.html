@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Zero‑Harm Orchestrator</title>
+  <meta name="description" content="Local‑first Zero‑Harm orchestrator with starfield, WebLLM, IndexedDB, transparency ledger, and audit‑friendly UI.">
+  <style>
+    body,html{height:100%;margin:0;overflow:hidden;background:#000;color:#ddd;font-family:'Segoe UI',Arial,sans-serif;}
+    #starfield{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;}
+    #app{position:absolute;top:0;left:0;width:100%;height:100%;overflow-y:auto;padding:1em;box-sizing:border-box;backdrop-filter:brightness(0.4);}
+    .section{margin-bottom:2em;}
+    .section h2{margin-top:1em;}
+    details summary{cursor:pointer;font-weight:bold;}
+    .toc{position:fixed;top:0;right:0;padding:0.5em;background:rgba(0,0,0,0.6);color:#fff;max-width:200px;}
+    .toc a{color:#9cf;display:block;margin:0.2em 0;}
+    .hidden{display:none;}
+    #banner{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;color:#0f0;justify-content:center;align-items:center;flex-direction:column;z-index:9999;}
+  </style>
+</head>
+<body>
+  <canvas id="starfield"></canvas>
+  <div id="banner">
+    <h1>To: Gaia</h1>
+    <h2>From: Foster+Navi/Humanity</h2>
+  </div>
+  <div id="app">
+    <nav class="toc">
+      <details>
+        <summary>Contents</summary>
+        <a href="#section-charter">0. Zero‑Harm Charter</a>
+        <a href="#section-orchestration">1. Orchestration Graph</a>
+        <a href="#section-case">2. New Case</a>
+        <a href="#section-results">3. Results &amp; Ledger</a>
+        <a href="#section-translation">4. Translation</a>
+      </details>
+    </nav>
+    <div id="content">
+      <div class="section" id="section-charter">
+        <h2>0. Zero‑Harm Charter</h2>
+        <pre id="charter-text" style="white-space:pre-wrap;background:rgba(0,0,0,0.5);padding:1em;border-radius:5px;"></pre>
+      </div>
+      <div class="section" id="section-orchestration">
+        <h2>1. Orchestration Graph</h2>
+        <p>The orchestrator flows through multiple stages — Sentinel, Data Ethicist, Evidence Triangulator, Conflict Cartographer, Exit‑Ramp Generator, Impact Forecaster, Legal‑Policy Auditor, Communications Integrity, Red Team, and Transparency Ledger — ensuring that every recommendation complies with the Zero‑Harm Charter.</p>
+        <ul>
+          <li>P1: Risk &amp; Rights Sentinel</li>
+          <li>P2: Data Ethicist</li>
+          <li>P3: Evidence Triangulator</li>
+          <li>P4: Conflict Cartographer</li>
+          <li>P5: Exit‑Ramp Generator</li>
+          <li>P6: Impact Forecaster</li>
+          <li>P7: Legal‑Policy Auditor</li>
+          <li>P8: Communications Integrity</li>
+          <li>P9: Red Team</li>
+          <li>P10: Transparency Ledger</li>
+        </ul>
+      </div>
+      <div class="section" id="section-case">
+        <h2>2. New Case Profile</h2>
+        <form id="case-form">
+          <label>Domain: <input type="text" id="domain" required placeholder="e.g. strategic R&amp;D with dual-use risk"></label><br/>
+          <label>Jurisdiction: <input type="text" id="jurisdiction" placeholder="e.g. EU, US"></label><br/>
+          <label>Obligations: <input type="text" id="obligations" placeholder="comma-separated treaties/contracts"></label><br/>
+          <label>Constraints: <input type="text" id="constraints" placeholder="e.g. cannot disrupt critical services"></label><br/>
+          <label>Budget Bands: <input type="text" id="budget_bands" placeholder='e.g. {"capex":"...","opex":"..."}'></label><br/>
+          <label>Risk Indicators: <input type="text" id="risk_indicators" placeholder="e.g. accident risk, supply chain opacity"></label><br/>
+          <label>Goals: <input type="text" id="goals" placeholder="e.g. lawful de-escalation, transparency"></label><br/>
+          <button type="submit">Start Analysis</button>
+        </form>
+      </div>
+      <div class="section" id="section-results">
+        <h2>3. Analysis &amp; Transparency Ledger</h2>
+        <div id="analysis-output"><p>Results will appear here after running analysis.</p></div>
+        <h3>Ledger</h3>
+        <div id="ledger-list"></div>
+      </div>
+      <div class="section" id="section-translation">
+        <h2>4. Translation Settings</h2>
+        <p>Configure translation backends.</p>
+        <label>Backend:
+          <select id="translation-backend">
+            <option value="dictionary">Dictionary‑only (local WebLLM)</option>
+            <option value="libretranslate">LibreTranslate (remote)</option>
+            <option value="google">Google Cloud Translate (remote)</option>
+            <option value="deepl">DeepL (remote)</option>
+            <option value="azure">Azure Translator (remote)</option>
+          </select>
+        </label><br/>
+        <label>Endpoint/URL: <input type="text" id="translation-endpoint"></label><br/>
+        <label>API Key: <input type="password" id="translation-api-key"></label><br/>
+        <label>Region (Azure): <input type="text" id="translation-region"></label><br/>
+        <button id="translation-save">Save Settings</button>
+        <button id="translation-test">Test</button>
+      </div>
+      <div id="donation-overlay" class="hidden">
+        <div style="position:fixed;bottom:10%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);padding:1em;border-radius:8px;color:#fff;">
+          <p>A wandering wizard appears! Donate to support peace and restoration.</p>
+          <button id="wizard-button">Cast a spell</button>
+          <button id="gem-button">Tap the gem</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<script type="module">
+// Self‑integrity & public display check
+(function(){
+  const localHosts=['localhost','127.0.0.1','0.0.0.0',''];
+  const isLocal=localHosts.includes(window.location.hostname);
+  if(!isLocal){
+    // obfuscate and show banner
+    document.getElementById('banner').style.display='flex';
+    document.getElementById('app').style.display='none';
+    for(const key in window){
+      if(key.startsWith('_')||key.startsWith('app')){
+        try{ window[key]=undefined; }catch(e){}
+      }
+    }
+    return;
+  }
+  // integrity check
+  async function checkIntegrity(){
+    try{
+      const scriptText=document.currentScript.textContent;
+      const encoder=new TextEncoder();
+      const data=encoder.encode(scriptText);
+      const hashBuffer=await crypto.subtle.digest('SHA-256',data);
+      const hashArray=Array.from(new Uint8Array(hashBuffer));
+      const hashHex=hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
+      const expectedHash='REPLACE_WITH_EXPECTED_HASH';
+      if(hashHex!==expectedHash){
+        console.warn('Code integrity check failed. Hash mismatch.');
+      }
+    }catch(e){
+      console.error('Integrity check error',e);
+    }
+  }
+  checkIntegrity();
+})();
+
+// Star‑field animation
+function startStarfield(){
+  const canvas=document.getElementById('starfield');
+  const ctx=canvas.getContext('2d');
+  let width=canvas.width=window.innerWidth;
+  let height=canvas.height=window.innerHeight;
+  let stars=[],maxStars=400;
+  function createStar(){
+    return {
+      x:Math.random()*width-width/2,
+      y:Math.random()*height-height/2,
+      z:Math.random()*width,
+      vx:0,
+      vy:0,
+      vz:-0.2-Math.random()*0.4
+    };
+  }
+  for(let i=0;i<maxStars;i++) stars.push(createStar());
+  function resize(){
+    width=canvas.width=window.innerWidth;
+    height=canvas.height=window.innerHeight;
+  }
+  window.addEventListener('resize',resize);
+  function animate(){
+    ctx.fillStyle='black';
+    ctx.fillRect(0,0,width,height);
+    ctx.fillStyle='white';
+    const centerX=width/2,centerY=height/2;
+    for(let star of stars){
+      star.x+=star.vx;
+      star.y+=star.vy;
+      star.z+=star.vz;
+      if(star.z<=0){ Object.assign(star,createStar()); star.z=width; }
+      const k=128/star.z;
+      const x=star.x*k+centerX;
+      const y=star.y*k+centerY;
+      if(x<0||x>=width||y<0||y>=height){ Object.assign(star,createStar()); continue; }
+      const size=(1-star.z/width)*3;
+      ctx.fillRect(x,y,size,size);
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+document.addEventListener('DOMContentLoaded',startStarfield);
+
+// IndexedDB for Transparency Ledger
+const DB_NAME='transparencyLedger',DB_VERSION=1;
+let db;
+function openDb(){
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open(DB_NAME,DB_VERSION);
+    request.onerror=event=>reject(event.target.error);
+    request.onupgradeneeded=event=>{
+      db=event.target.result;
+      db.createObjectStore('cases',{keyPath:'id',autoIncrement:true});
+    };
+    request.onsuccess=event=>{
+      db=event.target.result;
+      resolve(db);
+    };
+  });
+}
+async function saveLedger(entry){
+  await openDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['cases'],'readwrite');
+    const store=tx.objectStore('cases');
+    const request=store.add(entry);
+    request.onsuccess=()=>resolve();
+    request.onerror=e=>reject(e.target.error);
+  });
+}
+async function listLedger(){
+  await openDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(['cases'],'readonly');
+    const store=tx.objectStore('cases');
+    const request=store.openCursor();
+    const result=[];
+    request.onsuccess=event=>{
+      const cursor=event.target.result;
+      if(cursor){ result.push(cursor.value); cursor.continue(); }
+      else resolve(result);
+    };
+    request.onerror=e=>reject(e.target.error);
+  });
+}
+
+// WebLLM integration
+import { CreateMLCEngine } from 'https://esm.run/@mlc-ai/web-llm';
+let engine;
+async function initModel(){
+  const progress=p=>console.log(`Model loading progress: ${p}%`);
+  const model='Llama-3.1-8B-Instruct-q4f32_1-MLC';
+  engine=await CreateMLCEngine(model,{initProgressCallback:progress});
+}
+const systemPrompt=`
+You are the orchestrator for a Zero‑Harm exit ramp generator. Follow the Zero‑Harm Charter's constraints and the staged agent prompts below.
+
+Zero‑Harm Charter:
+1. Do no harm: no proposals that risk physical harm, doxxing, targeted harassment, or deprivation of essential needs. No deception.
+2. Law + rights: comply with applicable law and the UN Guiding Principles (“protect, respect, remedy”). Flag jurisdictional uncertainty. Not legal advice.
+3. Privacy: use public, consented, or official data only; no sensitive personal data; no scraping behind logins; no microtargeting or behavior manipulation.
+4. EU AI Act alignment: avoid prohibited practices (social scoring, subliminal manipulation, predictive policing, biometric categorization of protected traits, emotion recognition in schools/workplaces).
+5. Transparency: all factual claims cite at least two independent reputable sources with timestamps; uncertainty is explicit.
+6. Non‑evasion: never advise on evading law enforcement, destroying evidence, or concealing wrongdoing. Prefer disclosure, remediation, restitution, or resignation pathways when appropriate.
+7. Human‑in‑the‑loop: require human approval at every decision gate. Provide refusal reasons when unsafe/uncertain.
+
+Success: Reduce risk across safety, legal, social, environmental dimensions. Maintain an auditable record of evidence, reasoning, and trade‑offs. Preserve dignity and uphold rights.
+
+The orchestrator flows through these stages:
+P1 — Sentinel: Check for harm, illegality, privacy risks, or prohibited AI uses; output {allow|block,reasons[],mitigations[]}.
+P2 — Data Ethicist: Approve sources from allowed types; output DataPolicyReport.
+P3 — Evidence Triangulator: Build Evidence Pack; for every claim find ≥2 sources; output EvidencePack.
+P4 — Conflict Cartographer: Map stakeholders, obligations, flows, risks; output Map.
+P5 — Exit‑Ramp Generator: Propose lawful, nonviolent exit options with categories A–I; output ExitOptions with scorecards.
+P6 — Impact Forecaster: Forecast near‑term impacts; output ImpactBrief per option.
+P7 — Legal‑Policy Auditor: Check compliance with law and policies; output ComplianceMatrix.
+P8 — Communications Integrity: Draft plain‑language explanation; output PublicNote.
+P9 — Red Team: Stress‑test for unintended harms; output Findings.
+P10 — Transparency Ledger: Summarize sources, decisions, uncertainties; output Ledger entry.
+Always abide by the charter and confirm at each step.
+`;
+document.getElementById('case-form').addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  if(!engine) await initModel();
+  const caseProfile={
+    domain:document.getElementById('domain').value,
+    jurisdiction:document.getElementById('jurisdiction').value.split(',').map(s=>s.trim()).filter(Boolean),
+    obligations:document.getElementById('obligations').value.split(',').map(s=>s.trim()).filter(Boolean),
+    constraints:document.getElementById('constraints').value.split(',').map(s=>s.trim()).filter(Boolean),
+    budget_bands:document.getElementById('budget_bands').value,
+    risk_indicators:document.getElementById('risk_indicators').value.split(',').map(s=>s.trim()).filter(Boolean),
+    goals:document.getElementById('goals').value.split(',').map(s=>s.trim()).filter(Boolean)
+  };
+  const messages=[
+    {role:'system',content:systemPrompt},
+    {role:'user',content:'Case Profile: '+JSON.stringify(caseProfile)+' Please run the full orchestrator and produce the ExitOptions with scorecards, ImpactBriefs, ComplianceMatrix, PublicNote, Red‑Team Findings, and Ledger summary. Provide citations with sources and dates.'}
+  ];
+  const outputDiv=document.getElementById('analysis-output');
+  outputDiv.textContent='Processing... this may take a while.';
+  try{
+    const reply=await engine.chat.completions.create({messages,stream:true,temperature:0.7});
+    let response='';
+    for await (const chunk of reply){
+      response+=chunk.choices[0]?.delta?.content||'';
+      outputDiv.textContent=response;
+    }
+    const entry={timestamp:new Date().toISOString(),caseProfile,response};
+    await saveLedger(entry);
+    await refreshLedgerList();
+  }catch(error){
+    outputDiv.textContent='Error: '+error.message;
+  }
+});
+async function refreshLedgerList(){
+  const entries=await listLedger();
+  const ledgerList=document.getElementById('ledger-list');
+  ledgerList.innerHTML='';
+  entries.forEach(entry=>{
+    const div=document.createElement('div');
+    div.style.borderBottom='1px solid #333';
+    div.style.marginBottom='0.5em';
+    div.innerHTML='<strong>'+new Date(entry.timestamp).toLocaleString()+'</strong><br/>Domain: '+entry.caseProfile.domain+'<br/><button data-id="'+entry.id+'">View</button>';
+    ledgerList.appendChild(div);
+    div.querySelector('button').addEventListener('click',()=>{ document.getElementById('analysis-output').textContent=entry.response; });
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{ refreshLedgerList(); });
+
+// Translation settings
+document.getElementById('translation-save').addEventListener('click',()=>{
+  const settings={
+    backend:document.getElementById('translation-backend').value,
+    endpoint:document.getElementById('translation-endpoint').value,
+    apiKey:document.getElementById('translation-api-key').value,
+    region:document.getElementById('translation-region').value
+  };
+  localStorage.setItem('translationSettings',JSON.stringify(settings));
+  alert('Saved translation settings!');
+});
+document.getElementById('translation-test').addEventListener('click',()=>{
+  alert('Translation test not implemented in offline mode.');
+});
+
+// Donation overlay logic
+let donationShown=false;
+function showDonationOverlay(){
+  if(donationShown) return;
+  donationShown=true;
+  const overlay=document.getElementById('donation-overlay');
+  overlay.classList.remove('hidden');
+  overlay.querySelector('#wizard-button').addEventListener('click',()=>{
+    overlay.classList.add('hidden');
+    alert('You cast a spell! Donation address copied to clipboard.');
+    navigator.clipboard.writeText('47LcEP5RYbVMCMXNURuRjq8qHJNeF2aZ339Bp45MYhmMES5Cc61jMZa59BBdY137EyJMqLfQFBvesV6jLjyCFsBVQYftWde');
+  });
+  overlay.querySelector('#gem-button').addEventListener('click',()=>{
+    overlay.classList.add('hidden');
+    alert('You tapped the gem! Donation address copied to clipboard.');
+    navigator.clipboard.writeText('47LcEP5RYbVMCMXNURuRjq8qHJNeF2aZ339Bp45MYhmMES5Cc61jMZa59BBdY137EyJMqLfQFBvesV6jLjyCFsBVQYftWde');
+  });
+}
+// 40% chance to show donation overlay after 60 seconds
+if(Math.random()<0.4){
+  setTimeout(showDonationOverlay,60000);
+}
+// Random wallet ticker from PRA funding page
+async function fetchRandomWallet(){
+  try{
+    const res=await fetch('https://planetaryrestorationarchive.com/funding');
+    const text=await res.text();
+    const regex=/[1-9A-Za-z]{34,}/g;
+    const matches=text.match(regex);
+    if(matches){
+      return matches[Math.floor(Math.random()*matches.length)];
+    }
+  }catch(e){
+    console.error('Could not fetch wallet addresses:',e);
+  }
+  return null;
+}
+async function startWalletTicker(){
+  const ticker=document.createElement('div');
+  ticker.style.position='fixed';
+  ticker.style.bottom='0';
+  ticker.style.left='0';
+  ticker.style.width='100%';
+  ticker.style.background='rgba(0,0,0,0.6)';
+  ticker.style.color='#0f0';
+  ticker.style.whiteSpace='nowrap';
+  ticker.style.overflow='hidden';
+  ticker.style.fontSize='12px';
+  ticker.style.padding='0.2em';
+  document.body.appendChild(ticker);
+  const wallet=await fetchRandomWallet();
+  const text=wallet?'Support peace: '+wallet:'Support peace and restoration.';
+  ticker.textContent=text+' '.repeat(20)+text;
+  let offset=0;
+  function scrollTicker(){
+    offset-=1;
+    ticker.style.transform='translateX('+offset+'px)';
+    if(-offset>=ticker.scrollWidth/2){ offset=0; }
+    requestAnimationFrame(scrollTicker);
+  }
+  scrollTicker();
+}
+startWalletTicker();
+</script>
+</body>
+</html>
